@@ -55,9 +55,9 @@ describe('pegelLageFuerRhein', () => {
     expect(lage.aenderung24hCm).toBeNull()
   })
 
-  it('meldet null, wenn der letzte Wert zu weit zurückliegt', () => {
+  it('schreibt fort statt null zu melden, wenn der letzte Wert zu weit zurückliegt', () => {
     const alt = steigend().filter((m) => m.zeit < new Date('2026-08-15T00:00:00Z'))
-    expect(pegelLageFuerRhein(alt, JETZT, 'REES').wasserstandCm).toBeNull()
+    expect(pegelLageFuerRhein(alt, JETZT, 'REES').vorhergesagt).toBe(true)
   })
 })
 
