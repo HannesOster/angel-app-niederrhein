@@ -16,6 +16,21 @@ import { begrenze } from './hilfen'
 /** Ab diesem Datenalter gibt es keinen Wert mehr, sondern „unsicher" (Spec §4.6) */
 export const DATEN_MAX_ALTER_MINUTEN = 360
 
+/**
+ * Normiert ein Gewicht auf das im Plan zugesicherte Intervall [0, 3].
+ *
+ * Gewichte kommen später aus einem ungeprüft gecasteten Datenbank-JSON-Feld
+ * und aus einem Zahleneingabefeld in den Einstellungen — beides außerhalb
+ * unserer Kontrolle. Ein nicht-endliches Gewicht (NaN/Infinity) würde
+ * `roh * gewicht` und damit `summe`/`maxSumme` zu NaN machen und still den
+ * ganzen Index zerstören. Deshalb: nicht-endlich → 0 (Faktor wirkungslos),
+ * endlich aber außerhalb von [0, 3] → geklemmt.
+ */
+function normiereGewicht(gewicht: number): number {
+  if (!Number.isFinite(gewicht)) return 0
+  return begrenze(gewicht, 0, 3)
+}
+
 export function berechneIndex(
   b: Bedingungen,
   fisch: Fisch,
@@ -41,7 +56,7 @@ export function berechneIndex(
   let maxSumme = 0
 
   for (const key of FAKTOR_KEYS) {
-    const gewicht = gewichte[key]
+    const gewicht = normiereGewicht(gewichte[key])
     const ueberschreibung =
       key === 'tageszeit' ? truebungsRegel.tageszeitUeberschreibung : undefined
     const { roh, text } = berechneFaktor(key, b, fisch, ueberschreibung)

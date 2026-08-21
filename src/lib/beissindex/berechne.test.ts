@@ -169,3 +169,89 @@ describe('berechneIndex — nicht-endliche Rohwerte', () => {
     }
   })
 })
+
+describe('berechneIndex — nicht-endliche oder ungültige Gewichte', () => {
+  it('behandelt ein Infinity-Gewicht wie das Plan-Maximum, wert bleibt endlich', () => {
+    const gewichte = { ...STANDARD_GEWICHTE.hecht, luftdruckTrend: Infinity }
+    const ergebnis = berechneIndex(basis(), 'hecht', gewichte)
+
+    expect(ergebnis.wert).not.toBeNull()
+    expect(Number.isFinite(ergebnis.wert!)).toBe(true)
+    expect(ergebnis.wert!).toBeGreaterThanOrEqual(0)
+    expect(ergebnis.wert!).toBeLessThanOrEqual(10)
+  })
+
+  it('behandelt ein NaN-Gewicht wie 0, wert bleibt endlich', () => {
+    const gewichte = { ...STANDARD_GEWICHTE.hecht, luftdruckTrend: NaN }
+    const ergebnis = berechneIndex(basis(), 'hecht', gewichte)
+
+    const beitrag = ergebnis.beitraege.find((b) => b.key === 'luftdruckTrend')
+    expect(beitrag?.gewicht).toBe(0)
+    expect(beitrag?.beitrag).toBeCloseTo(0, 10)
+    expect(ergebnis.wert).not.toBeNull()
+    expect(Number.isFinite(ergebnis.wert!)).toBe(true)
+  })
+
+  it('wirkt bei einem negativen Gewicht wie 0, nicht invertierend', () => {
+    const gewichte = { ...STANDARD_GEWICHTE.hecht, luftdruckTrend: -5 }
+    const ergebnis = berechneIndex(basis(), 'hecht', gewichte)
+
+    const beitrag = ergebnis.beitraege.find((b) => b.key === 'luftdruckTrend')
+    expect(beitrag?.gewicht).toBe(0)
+    expect(beitrag?.beitrag).toBeCloseTo(0, 10)
+  })
+
+  it('klemmt ein Gewicht über 3 auf das Plan-Maximum von 3', () => {
+    const gewichte = { ...STANDARD_GEWICHTE.hecht, luftdruckTrend: 99 }
+    const ergebnis = berechneIndex(basis(), 'hecht', gewichte)
+
+    const beitrag = ergebnis.beitraege.find((b) => b.key === 'luftdruckTrend')
+    expect(beitrag?.gewicht).toBe(3)
+  })
+
+  it('hält beitrag = roh * gewicht der ausgewiesenen Werte auch bei kaputten Gewichten ein', () => {
+    const faelle: Array<{ luftdruckTrend: number }> = [
+      { luftdruckTrend: Infinity },
+      { luftdruckTrend: NaN },
+      { luftdruckTrend: -5 },
+      { luftdruckTrend: 99 },
+    ]
+
+    for (const fall of faelle) {
+      const gewichte = { ...STANDARD_GEWICHTE.hecht, ...fall }
+      const { beitraege } = berechneIndex(basis(), 'hecht', gewichte)
+      for (const b of beitraege) {
+        if (b.fehlend) continue
+        expect(b.beitrag).toBeCloseTo(b.roh * b.gewicht, 10)
+      }
+    }
+  })
+
+  it('liefert nie einen nicht-endlichen wert, egal welche Gewichts-Kombinationen kaputt sind', () => {
+    const kaputteGewichtsKombinationen: Array<Partial<Record<string, number>>> = [
+      { luftdruckTrend: Infinity },
+      { luftdruckTrend: -Infinity },
+      { luftdruckTrend: NaN },
+      { luftdruckTrend: -5 },
+      { luftdruckTrend: 99 },
+      {
+        luftdruckTrend: Infinity,
+        pegelNiveau: NaN,
+        truebung: -Infinity,
+        wassertemperatur: -5,
+        licht: 99,
+        tageszeit: NaN,
+        wind: Infinity,
+        solunar: -1,
+      },
+    ]
+
+    for (const kombination of kaputteGewichtsKombinationen) {
+      for (const fisch of FISCHE) {
+        const gewichte = { ...STANDARD_GEWICHTE[fisch], ...kombination }
+        const ergebnis = berechneIndex(basis(), fisch, gewichte)
+        expect(ergebnis.wert === null || Number.isFinite(ergebnis.wert)).toBe(true)
+      }
+    }
+  })
+})
