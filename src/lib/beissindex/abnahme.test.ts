@@ -20,25 +20,39 @@ function bedingungen(ueberschreibung: Partial<Bedingungen> = {}): Bedingungen {
 }
 
 describe('Abnahme: Spec §10', () => {
-  it('Hochwasser, stark getrübt, Zander, 13 Uhr — trotz Tageslicht besser als bei klarem Wasser', () => {
-    const hochwasserTrueb = bedingungen({
+  it('Zander, gleiches Pegelniveau, 13 Uhr — steigendes (trübes) Wasser schlägt fallendes (klares) Wasser NUR wegen der Trübungsregel', () => {
+    // Pegelniveau ist in beiden Fällen identisch (0,9) und der Betrag der
+    // Änderung ebenfalls (20 cm) — damit sind pegelNiveau-Faktor und die
+    // Änderungsbremse (Schwelle 30 cm) in beiden Fällen gleich. Nur die
+    // RICHTUNG der Änderung unterscheidet sich: steigend trübt ein (über der
+    // Trübungsschwelle 0,6), fallend klart auf (darunter). Der truebung-Faktor
+    // selbst begünstigt sogar den klaren Fall (Zander-Optimum liegt bei 0,45,
+    // näher an "klar") — gewinnt der trübe Fall trotzdem, kann das nur an der
+    // Trübungsregel liegen, die die Tageszeit für den Zander anhebt.
+    const gemeinsam = {
       zeit: new Date('2026-08-21T13:00:00Z'),
       pegelNiveauRelativ: 0.9,
-      pegelAenderung24hCm: 20,
       bewoelkungProzent: 90,
-    })
-    const klaresNiedrigwasser = bedingungen({
-      zeit: new Date('2026-08-21T13:00:00Z'),
-      pegelNiveauRelativ: -0.7,
-      pegelAenderung24hCm: -10,
-      bewoelkungProzent: 90,
-    })
+    }
+    const steigendTrueb = bedingungen({ ...gemeinsam, pegelAenderung24hCm: 20 })
+    const fallendKlar = bedingungen({ ...gemeinsam, pegelAenderung24hCm: -20 })
 
-    const trueb = berechneIndex(hochwasserTrueb, 'zander')
-    const klar = berechneIndex(klaresNiedrigwasser, 'zander')
+    const trueb = berechneIndex(steigendTrueb, 'zander')
+    const klar = berechneIndex(fallendKlar, 'zander')
 
     expect(trueb.regeln.map((r) => r.name)).toContain('truebungsRegel')
+    expect(klar.regeln.map((r) => r.name)).not.toContain('truebungsRegel')
     expect(trueb.wert!).toBeGreaterThan(klar.wert!)
+
+    // Diskriminierungsnachweis: Die Regel gilt nur für Zander, nicht für
+    // Hecht. Bei sonst identischen (trüben) Bedingungen muss der
+    // tageszeit-Beitrag beim Zander deshalb höher liegen als beim Hecht.
+    const hecht = berechneIndex(steigendTrueb, 'hecht')
+    const tageszeitZander = trueb.beitraege.find((b) => b.key === 'tageszeit')
+    const tageszeitHecht = hecht.beitraege.find((b) => b.key === 'tageszeit')
+    expect(tageszeitZander).toBeDefined()
+    expect(tageszeitHecht).toBeDefined()
+    expect(tageszeitZander!.roh).toBeGreaterThan(tageszeitHecht!.roh)
   })
 
   it('Pegel fällt 60 cm am Tag — schlechter als ruhiger Pegel, für jede Art', () => {
