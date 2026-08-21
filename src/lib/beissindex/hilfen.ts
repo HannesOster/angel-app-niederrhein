@@ -13,6 +13,9 @@ export function optimumsKurve(
   toleranz: number,
 ): number {
   if (wert >= von && wert <= bis) return 1
+  // Guard gegen nicht-positive Toleranz: Division durch null würde NaN erzeugen,
+  // das still in die Indexsumme wandert und sie zerstört.
+  if (toleranz <= 0) return -1
   const abstand = wert < von ? von - wert : wert - bis
   return begrenze(1 - (2 * abstand) / toleranz, -1, 1)
 }
@@ -22,6 +25,9 @@ export function optimumsKurve(
  * -1 ab voller Spanne Abstand.
  */
 export function naeheZu(wert: number, ziel: number, spanne: number): number {
+  // Guard gegen nicht-positive Spanne: Division durch null würde NaN erzeugen,
+  // das still in die Indexsumme wandert und sie zerstört.
+  if (spanne <= 0) return wert === ziel ? 1 : -1
   const abstand = Math.abs(wert - ziel)
   return begrenze(1 - (2 * abstand) / spanne, -1, 1)
 }

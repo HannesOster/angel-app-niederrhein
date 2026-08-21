@@ -25,6 +25,10 @@ describe('optimumsKurve', () => {
     expect(optimumsKurve(22, 8, 16, 6)).toBe(-1)
     expect(optimumsKurve(60, 8, 16, 6)).toBe(-1)
   })
+  it('behandelt nicht-positive Toleranz korrekt', () => {
+    expect(optimumsKurve(12, 8, 16, 0)).toBe(1)
+    expect(optimumsKurve(20, 8, 16, 0)).toBe(-1)
+  })
 })
 
 describe('naeheZu', () => {
@@ -36,6 +40,10 @@ describe('naeheZu', () => {
   })
   it('gibt 0 bei halbem Abstand', () => {
     expect(naeheZu(27.5, 15, 25)).toBeCloseTo(0, 5)
+  })
+  it('behandelt nicht-positive Spanne korrekt', () => {
+    expect(naeheZu(15, 15, 0)).toBe(1)
+    expect(naeheZu(20, 15, 0)).toBe(-1)
   })
 })
 
@@ -52,6 +60,26 @@ describe('truebungAus', () => {
         const t = truebungAus(aenderung, niveau)
         expect(t).toBeGreaterThanOrEqual(0)
         expect(t).toBeLessThanOrEqual(1)
+      }
+    }
+  })
+})
+
+describe('no NaN in any function', () => {
+  it('garantiert, dass keine Funktion jemals NaN liefert', () => {
+    const testValues = [-1000, -100, -30, -1, 0, 1, 30, 100, 1000]
+    for (const wert of testValues) {
+      for (const ziel of testValues) {
+        for (const param3 of [-1, 0, 1, 10]) {
+          // begrenze
+          expect(Number.isNaN(begrenze(wert, -100, 100))).toBe(false)
+          // optimumsKurve
+          expect(Number.isNaN(optimumsKurve(wert, ziel, param3, param3))).toBe(false)
+          // naeheZu
+          expect(Number.isNaN(naeheZu(wert, ziel, param3))).toBe(false)
+          // truebungAus
+          expect(Number.isNaN(truebungAus(wert, ziel))).toBe(false)
+        }
       }
     }
   })
