@@ -12,6 +12,31 @@ export interface GewaesserStamm {
   daempfung: number
 }
 
+/**
+ * `solunarStaerke` fährt pro Aufruf rund 430 Mondpositionen ab (Rechenkern,
+ * unangetastet). Bei 216 Stunden × 12 Gewässern wird das spürbar langsam,
+ * obwohl sich die zugrunde liegenden Mondauf-/-untergänge und -durchgänge
+ * nur einmal pro Kalendertag und Koordinate ändern. Der Zwischenspeicher
+ * liegt bewusst hier in der aufrufenden Schicht, nicht im Rechenkern:
+ * pro Kalendertag+Koordinate wird nur einmal gerechnet, alle Stunden dieses
+ * Tages teilen sich den Wert. Das ist eine bewusste Vergröberung — echte
+ * Stunde-zu-Stunde-Unterschiede innerhalb eines Tages gehen dabei verloren —,
+ * aber für die Übersicht über zwölf Gewässer ausreichend genau.
+ */
+const solunarCache = new Map<string, number>()
+
+function solunarStaerkeGecached(zeit: Date, lat: number, lon: number): number {
+  const tag = zeit.toISOString().slice(0, 10)
+  const schluessel = `${tag}|${lat}|${lon}`
+
+  const vorhanden = solunarCache.get(schluessel)
+  if (vorhanden !== undefined) return vorhanden
+
+  const wert = solunarStaerke(zeit, lat, lon)
+  solunarCache.set(schluessel, wert)
+  return wert
+}
+
 export function luftdruckTrend(wetter: WetterStundeRoh[], index: number): number {
   const vorher = index - 24
   if (vorher < 0) return 0
@@ -66,7 +91,7 @@ export function baueBedingungen(
       windKmh: stunde.windKmh,
       sonnenaufgang: stunde.sonnenaufgang,
       sonnenuntergang: stunde.sonnenuntergang,
-      solunarStaerke: solunarStaerke(stunde.zeit, stamm.lat, stamm.lon),
+      solunarStaerke: solunarStaerkeGecached(stunde.zeit, stamm.lat, stamm.lon),
       datenAlterMinuten: alterMs / 60_000,
     }
   })

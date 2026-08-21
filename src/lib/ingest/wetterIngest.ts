@@ -1,10 +1,21 @@
 import type { WetterStundeRoh } from '@/lib/quellen/openmeteo'
 
+export interface WetterFelder {
+  luftdruckHpa: number
+  bewoelkung: number
+  windKmh: number
+  lufttemperaturC: number
+  niederschlagMm: number
+  sonnenaufgang: Date
+  sonnenuntergang: Date
+  abgerufenAm: Date
+}
+
 export interface WetterSchreiber {
   upsert(daten: {
     where: { gewaesserId_zeit: { gewaesserId: string; zeit: Date } }
-    update: Record<string, unknown>
-    create: Record<string, unknown>
+    update: WetterFelder
+    create: WetterFelder & { gewaesserId: string; zeit: Date }
   }): Promise<unknown>
 }
 
