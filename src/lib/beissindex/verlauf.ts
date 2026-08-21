@@ -7,14 +7,34 @@ export interface StundenWert {
 }
 
 export interface TagesWert {
+  /**
+   * Datumsmarker für den LOKALEN Kalendertag (Zeitzone `ZEITZONE`), kein
+   * echter Zeitpunkt. Immer `T00:00:00Z`. Die Oberfläche muss ihn mit
+   * `timeZone: 'UTC'` formatieren, sonst verschiebt sie ihn erneut.
+   */
   tag: Date
   besteStunde: Date | null
   wert: number | null
   unsicher: boolean
 }
 
+/**
+ * Die App wird am Niederrhein genutzt (MESZ/MEZ). Tagesgrenzen müssen daher
+ * in Ortszeit gezogen werden, nicht in UTC — sonst fallen die besten
+ * Nachtstunden (u. a. für den Aal) auf den falschen Kalendertag.
+ */
+const ZEITZONE = 'Europe/Berlin'
+
+const LOKALES_DATUM_FORMAT = new Intl.DateTimeFormat('sv-SE', {
+  timeZone: ZEITZONE,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+})
+
+/** Liefert den lokalen Kalendertag (YYYY-MM-DD) einer Stunde. */
 function tagesSchluessel(zeit: Date): string {
-  return zeit.toISOString().slice(0, 10)
+  return LOKALES_DATUM_FORMAT.format(zeit)
 }
 
 export function berechneStunden(
@@ -97,7 +117,15 @@ export function besteZeitspanne(
     }
   }
 
-  const schwelle = (desTages[besterIndex].ergebnis.wert ?? 0) * 0.85
+  const bestwert = desTages[besterIndex].ergebnis.wert ?? 0
+
+  // Bei einem Tagesbestwert von 0 (oder darunter) ergäbe 0 * 0.85 = 0 als
+  // Schwelle, die JEDE Stunde erfüllt — die Spanne würde fälschlich den
+  // ganzen Tag als beste Beißzeit ausweisen. An einem Tag ohne jede Chance
+  // ist keine Angabe ehrlicher als eine falsche.
+  if (bestwert <= 0) return null
+
+  const schwelle = bestwert * 0.85
 
   let von = besterIndex
   while (von > 0 && (desTages[von - 1].ergebnis.wert ?? 0) >= schwelle) von--
