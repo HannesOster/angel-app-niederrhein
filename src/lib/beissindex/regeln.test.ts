@@ -47,6 +47,10 @@ describe('pruefeTruebungsRegel', () => {
     const ohne = basis({ pegelNiveauRelativ: null, pegelAenderung24hCm: null })
     expect(pruefeTruebungsRegel(ohne, 'zander').regel).toBeUndefined()
   })
+
+  it('greift nicht mit NaN in pegelNiveauRelativ', () => {
+    expect(pruefeTruebungsRegel(basis({ ...HOCHWASSER_TRUEB, pegelNiveauRelativ: NaN }), 'zander').regel).toBeUndefined()
+  })
 })
 
 describe('pruefeAenderungsBremse', () => {
@@ -81,5 +85,27 @@ describe('pruefeAenderungsBremse', () => {
   it('bremst ohne Pegeldaten nicht', () => {
     const { faktor } = pruefeAenderungsBremse(basis({ pegelAenderung24hCm: null }))
     expect(faktor).toBe(1)
+  })
+
+  it('bremst nicht bei NaN in pegelAenderung24hCm', () => {
+    const { faktor, regel } = pruefeAenderungsBremse(basis({ pegelAenderung24hCm: NaN }))
+    expect(faktor).toBe(1)
+    expect(regel).toBeUndefined()
+  })
+
+  it('bremst nicht bei Infinity in pegelAenderung24hCm', () => {
+    const { faktor, regel } = pruefeAenderungsBremse(basis({ pegelAenderung24hCm: Infinity }))
+    expect(faktor).toBe(1)
+    expect(regel).toBeUndefined()
+  })
+
+  it('liefert für eine Reihe von Eingaben immer einen endlichen Faktor zwischen 0,5 und 1', () => {
+    const testCases = [0, 10, 30, 50, 100, 500, 1000, -50, -100, -500, NaN, Infinity, -Infinity]
+    for (const cm of testCases) {
+      const { faktor } = pruefeAenderungsBremse(basis({ pegelAenderung24hCm: cm }))
+      expect(Number.isFinite(faktor)).toBe(true)
+      expect(faktor).toBeGreaterThanOrEqual(0.5)
+      expect(faktor).toBeLessThanOrEqual(1)
+    }
   })
 })

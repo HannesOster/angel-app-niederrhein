@@ -17,7 +17,16 @@ export function pruefeTruebungsRegel(
   fisch: Fisch,
 ): { tageszeitUeberschreibung?: number; regel?: AngewandteRegel } {
   if (fisch !== 'zander') return {}
-  if (b.pegelNiveauRelativ === null || b.pegelAenderung24hCm === null) return {}
+  // Non-finite values (NaN, Infinity) would propagate silently into the index
+  // and appear in the UI. Treat them the same as null.
+  if (
+    b.pegelNiveauRelativ === null ||
+    b.pegelAenderung24hCm === null ||
+    !Number.isFinite(b.pegelNiveauRelativ) ||
+    !Number.isFinite(b.pegelAenderung24hCm)
+  ) {
+    return {}
+  }
 
   const t = truebungAus(b.pegelAenderung24hCm, b.pegelNiveauRelativ)
   if (t < TRUEBUNG_SCHWELLE) return {}
@@ -37,7 +46,11 @@ export function pruefeTruebungsRegel(
 export function pruefeAenderungsBremse(
   b: Bedingungen,
 ): { faktor: number; regel?: AngewandteRegel } {
-  if (b.pegelAenderung24hCm === null) return { faktor: 1 }
+  // Non-finite values (NaN, Infinity) would propagate silently into Math.abs()
+  // and through begrenze(), producing NaN in the UI. Treat as null.
+  if (b.pegelAenderung24hCm === null || !Number.isFinite(b.pegelAenderung24hCm)) {
+    return { faktor: 1 }
+  }
 
   const betrag = Math.abs(b.pegelAenderung24hCm)
   if (betrag <= BREMS_SCHWELLE_CM) return { faktor: 1 }
