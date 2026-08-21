@@ -28,7 +28,7 @@ Region.
 
 ## 2. Nutzer und Zugang
 
-Ein einziges Konto: `danielschoeber@mail.de`.
+Ein einziges Konto: Daniels E-Mail-Adresse (steht ausschließlich in der gitignorierten `.env`, nicht in diesem Dokument).
 
 - Passwort ausschließlich als Hash in der Datenbank (argon2 oder bcrypt).
 - Klartext-Passwort steht nur in der gitignorierten `.env`, um das Konto einmalig
