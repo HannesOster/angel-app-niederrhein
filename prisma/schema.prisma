@@ -1,0 +1,152 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum GewaesserTyp {
+  RHEIN
+  ALTRHEIN
+  BAGGERSEE
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwortHash String
+  erstelltAm   DateTime @default(now())
+
+  mitgliedschaften Mitgliedschaft[]
+  tageskarten      Tageskarte[]
+  gewichtsProfile  GewichtsProfil[]
+  faenge           Fang[]
+}
+
+model Gewaesser {
+  id   String       @id @default(cuid())
+  slug String       @unique
+  name String
+  typ  GewaesserTyp
+  lat  Float
+  lon  Float
+
+  /// Pegelstation, an der dieses Gewässer hängt: "REES" oder "EMMERICH"
+  referenzPegel String
+  /// Nur für ALTRHEIN und BAGGERSEE: Verzögerung gegenüber dem Rhein
+  verzoegerungTage Int   @default(0)
+  /// Nur für ALTRHEIN und BAGGERSEE: Anteil der Rheinbewegung, 0–1
+  daempfung        Float @default(1)
+  /// true bei ALTRHEIN und BAGGERSEE — Wasserstand ist geschätzt, nicht gemessen
+  abgeleitet       Boolean @default(false)
+
+  vereine     GewaesserVerein[]
+  tageskarten Tageskarte[]
+  wetter      WetterStunde[]
+  faenge      Fang[]
+}
+
+model Verein {
+  id   String @id @default(cuid())
+  slug String @unique
+  name String
+
+  gewaesser        GewaesserVerein[]
+  mitgliedschaften Mitgliedschaft[]
+}
+
+model GewaesserVerein {
+  gewaesserId String
+  vereinId    String
+
+  gewaesser Gewaesser @relation(fields: [gewaesserId], references: [id], onDelete: Cascade)
+  verein    Verein    @relation(fields: [vereinId], references: [id], onDelete: Cascade)
+
+  @@id([gewaesserId, vereinId])
+}
+
+model Mitgliedschaft {
+  userId   String
+  vereinId String
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  verein Verein @relation(fields: [vereinId], references: [id], onDelete: Cascade)
+
+  @@id([userId, vereinId])
+}
+
+model Tageskarte {
+  id          String   @id @default(cuid())
+  userId      String
+  gewaesserId String
+  von         DateTime
+  bis         DateTime
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gewaesser Gewaesser @relation(fields: [gewaesserId], references: [id], onDelete: Cascade)
+
+  @@index([userId, bis])
+}
+
+model PegelMessung {
+  id                String   @id @default(cuid())
+  station           String
+  zeit              DateTime
+  wasserstandCm     Int
+  wassertemperaturC Float?
+
+  @@unique([station, zeit])
+  @@index([station, zeit])
+}
+
+model WetterStunde {
+  id              String   @id @default(cuid())
+  gewaesserId     String
+  zeit            DateTime
+  luftdruckHpa    Float
+  bewoelkung      Float
+  windKmh         Float
+  lufttemperaturC Float
+  niederschlagMm  Float
+  sonnenaufgang   DateTime
+  sonnenuntergang DateTime
+  abgerufenAm     DateTime @default(now())
+
+  gewaesser Gewaesser @relation(fields: [gewaesserId], references: [id], onDelete: Cascade)
+
+  @@unique([gewaesserId, zeit])
+  @@index([gewaesserId, zeit])
+}
+
+model GewichtsProfil {
+  id       String @id @default(cuid())
+  userId   String
+  fisch    String
+  gewichte Json
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, fisch])
+}
+
+model Fang {
+  id          String   @id @default(cuid())
+  userId      String
+  gewaesserId String
+  zeit        DateTime
+  fischart    String
+  laengeCm    Int?
+  koeder      String?
+  notiz       String?
+  /// Vollständige Kopie der Bedingungen und Beiträge zum Zeitpunkt des Fangs.
+  /// BEWUSST eine Kopie, kein Verweis — spätere Gewichtsänderungen dürfen die
+  /// Vergangenheit nicht umschreiben (Spec §8).
+  schnappschuss Json
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gewaesser Gewaesser @relation(fields: [gewaesserId], references: [id], onDelete: Cascade)
+
+  @@index([userId, zeit])
+}
